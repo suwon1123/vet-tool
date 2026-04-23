@@ -112,22 +112,33 @@ const css = `
 
   /* Calculator */
   .calc-display {
-    margin: 16px 16px 0; background: ${C.text}; border-radius: 20px;
+    margin: 16px 16px 0; background: #1c1c1e; border-radius: 20px;
     padding: 16px 22px 18px; box-shadow: 0 4px 16px rgba(0,0,0,.13);
     min-height: 110px; display: flex; flex-direction: column; justify-content: flex-end;
   }
   .calc-expr { font-family: 'Space Mono', monospace; font-size: 14px; color: rgba(255,255,255,.4); text-align: right; min-height: 20px; margin-bottom: 4px; word-break: break-all; }
   .calc-num { font-family: 'Space Mono', monospace; font-size: 48px; font-weight: 700; color: #fff; line-height: 1; text-align: right; word-break: break-all; }
-  .numpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 16px 10px; }
-  .num-btn { padding: 20px 4px; background: ${C.white}; border: 1px solid ${C.border}; border-radius: 16px; color: ${C.text}; font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; cursor: pointer; transition: all .1s; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.05); }
-  .num-btn:active { transform: scale(.95); box-shadow: none; }
-  .num-btn.op { background: ${C.accentLight}; color: ${C.accent}; border-color: #bfdbfe; font-size: 22px; }
-  .num-btn.op:active { background: #dbeafe; }
-  .num-btn.eq { background: ${C.accent}; color: #fff; border-color: ${C.accent}; font-size: 22px; }
-  .num-btn.eq:active { background: #1d4ed8; }
-  .num-btn.ac { background: #fff5f5; color: ${C.danger}; border-color: #fecaca; font-size: 15px; font-family: 'Space Mono', monospace; }
-  .num-btn.del { background: #fff5f5; color: ${C.danger}; border-color: #fecaca; }
-  .num-btn.zero { grid-column: span 2; }
+  .numpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px 16px 8px; }
+  .num-btn {
+    padding: 0; height: 68px; border-radius: 50%; border: none;
+    background: #d4d4d2; color: #1c1c1e;
+    font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 500;
+    cursor: pointer; transition: opacity .1s; text-align: center;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .num-btn:active { opacity: .6; }
+  .num-btn.op { background: #ff9f0a; color: #fff; font-size: 26px; }
+  .num-btn.eq { background: #ff9f0a; color: #fff; font-size: 26px; }
+  .num-btn.func { background: #a5a5a5; color: #1c1c1e; font-size: 20px; }
+  .num-btn.zero { grid-column: span 2; border-radius: 34px; justify-content: flex-start; padding-left: 26px; }
+  .calc-history { margin: 6px 16px 0; background: ${C.white}; border: 1px solid ${C.border}; border-radius: 14px; overflow: hidden; }
+  .calc-history-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid ${C.border}; background: #f8fafc; }
+  .calc-history-title { font-size: 11px; font-weight: 700; color: ${C.sub}; letter-spacing: .5px; text-transform: uppercase; }
+  .calc-history-clear { font-size: 11px; color: ${C.danger}; background: none; border: none; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
+  .calc-history-item { padding: 8px 14px; border-bottom: 1px solid ${C.border}; }
+  .calc-history-item:last-child { border-bottom: none; }
+  .calc-history-eq { font-size: 11px; color: ${C.sub}; text-align: right; }
+  .calc-history-result { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; color: ${C.text}; text-align: right; }
 
   /* Drug table */
   .drug-group-label {
@@ -480,6 +491,9 @@ function DrugScreen() {
   const [waitingOp, setWaitingOp] = useState(false);
   const [lastOp, setLastOp] = useState(null);
   const [stored, setStored] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [activeOp, setActiveOp] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const fmt = (n) => {
     if (n === null || isNaN(n)) return "오류";
@@ -488,6 +502,7 @@ function DrugScreen() {
   };
 
   const pressNum = (n) => {
+    setActiveOp(null);
     setDisplay(prev => {
       if (waitingOp || prev === "0") { setWaitingOp(false); return n === "." ? "0." : n; }
       if (n === "." && prev.includes(".")) return prev;
@@ -506,6 +521,7 @@ function DrugScreen() {
 
   const pressOp = (op) => {
     const cur = parseFloat(display);
+    setActiveOp(op);
     if (stored !== null && !waitingOp) {
       const result = evaluate(stored, cur, lastOp);
       setDisplay(fmt(result)); setStored(result); setExpr(fmt(result) + " " + op);
@@ -519,11 +535,13 @@ function DrugScreen() {
     if (stored === null || lastOp === null) return;
     const cur = parseFloat(display);
     const result = evaluate(stored, cur, lastOp);
-    setExpr(expr + " " + display + " =");
-    setDisplay(fmt(result)); setStored(null); setLastOp(null); setWaitingOp(true);
+    const fullExpr = expr + " " + display + " =";
+    setHistory(prev => [{ eq: fullExpr, result: fmt(result) }, ...prev].slice(0, 20));
+    setExpr(fullExpr);
+    setDisplay(fmt(result)); setStored(null); setLastOp(null); setWaitingOp(true); setActiveOp(null);
   };
 
-  const pressAC = () => { setDisplay("0"); setExpr(""); setWaitingOp(false); setLastOp(null); setStored(null); };
+  const pressAC = () => { setDisplay("0"); setExpr(""); setWaitingOp(false); setLastOp(null); setStored(null); setActiveOp(null); };
   const pressDel = () => { if (waitingOp) return; setDisplay(prev => prev.length <= 1 ? "0" : prev.slice(0, -1)); };
   const pressPM = () => setDisplay(prev => { const n = parseFloat(prev); return isNaN(n) ? prev : fmt(-n); });
   const pressPct = () => setDisplay(prev => { const n = parseFloat(prev); return isNaN(n) ? prev : fmt(n / 100); });
@@ -536,27 +554,57 @@ function DrugScreen() {
 
       <div className="calc-display">
         <div className="calc-expr">{expr || " "}</div>
-        <div className="calc-num">{display}</div>
+        <div className="calc-num" style={{fontSize: display.length > 9 ? "32px" : display.length > 6 ? "40px" : "48px"}}>{display}</div>
       </div>
 
+      {/* History */}
+      {history.length > 0 && (
+        <div className="calc-history">
+          <div className="calc-history-header" onClick={() => setHistoryOpen(o => !o)} style={{cursor:"pointer"}}>
+            <span className="calc-history-title">계산 기록</span>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {historyOpen && <button className="calc-history-clear" onClick={e => { e.stopPropagation(); setHistory([]); setHistoryOpen(false); }}>전체 삭제</button>}
+              <span style={{fontSize:12,color:C.sub}}>{historyOpen ? "▲ 접기" : "▼ 펼치기"}</span>
+            </div>
+          </div>
+          {/* 항상 최신 1개 표시 */}
+          <div className="calc-history-item" onClick={() => { setDisplay(history[0].result); setWaitingOp(true); }}>
+            <div className="calc-history-eq">{history[0].eq}</div>
+            <div className="calc-history-result">{history[0].result}</div>
+          </div>
+          {/* 펼치면 나머지 표시 */}
+          {historyOpen && history.slice(1).map((h, i) => (
+            <div key={i} className="calc-history-item" onClick={() => { setDisplay(h.result); setWaitingOp(true); }}>
+              <div className="calc-history-eq">{h.eq}</div>
+              <div className="calc-history-result">{h.result}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* iPhone-style numpad */}
       <div className="numpad">
-        <button className="num-btn ac" onClick={pressAC}>AC</button>
-        <button className="num-btn op" onClick={pressPM}>+/−</button>
-        <button className="num-btn op" onClick={pressPct}>%</button>
-        <button className="num-btn op" onClick={() => pressOp("÷")}>÷</button>
+        {/* Row 1 */}
+        <button className="num-btn func" onClick={pressAC} style={{fontSize:18}}>{display === "0" && !expr ? "AC" : "C"}</button>
+        <button className="num-btn func" onClick={pressPM}>+/−</button>
+        <button className="num-btn func" onClick={pressPct}>%</button>
+        <button className={`num-btn op${activeOp === "÷" ? " active-op" : ""}`} onClick={() => pressOp("÷")}>÷</button>
+        {/* Row 2 */}
         <button className="num-btn" onClick={() => pressNum("7")}>7</button>
         <button className="num-btn" onClick={() => pressNum("8")}>8</button>
         <button className="num-btn" onClick={() => pressNum("9")}>9</button>
-        <button className="num-btn op" onClick={() => pressOp("×")}>×</button>
+        <button className={`num-btn op${activeOp === "×" ? " active-op" : ""}`} onClick={() => pressOp("×")}>×</button>
+        {/* Row 3 */}
         <button className="num-btn" onClick={() => pressNum("4")}>4</button>
         <button className="num-btn" onClick={() => pressNum("5")}>5</button>
         <button className="num-btn" onClick={() => pressNum("6")}>6</button>
-        <button className="num-btn op" onClick={() => pressOp("−")}>−</button>
+        <button className={`num-btn op${activeOp === "−" ? " active-op" : ""}`} onClick={() => pressOp("−")}>−</button>
+        {/* Row 4 */}
         <button className="num-btn" onClick={() => pressNum("1")}>1</button>
         <button className="num-btn" onClick={() => pressNum("2")}>2</button>
         <button className="num-btn" onClick={() => pressNum("3")}>3</button>
-        <button className="num-btn op" onClick={() => pressOp("+")}>+</button>
-        <button className="num-btn del" onClick={pressDel}>{Icon.del}</button>
+        <button className={`num-btn op${activeOp === "+" ? " active-op" : ""}`} onClick={() => pressOp("+")}>+</button>
+        {/* Row 5 */}
         <button className="num-btn zero" onClick={() => pressNum("0")}>0</button>
         <button className="num-btn" onClick={() => pressNum(".")}>.</button>
         <button className="num-btn eq" onClick={pressEq}>=</button>
