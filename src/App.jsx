@@ -18,7 +18,7 @@ const css = `
     position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; background: ${C.white};
     border-top: 1px solid ${C.border}; z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
     box-shadow: 0 -1px 8px rgba(0,0,0,.06);
   }
   .tab-btn {
@@ -200,19 +200,18 @@ const BCS_CAT = [
   { score: 9, tag: "OBESE", col: "obese", desc: "갈비뼈 촉진 불가. 요추·안면·사지 지방. 복부 팽만." },
 ];
 
-// Drug groups from the photo — 주효능 / 약물명(한글) / 역가 / 희석액 / 보관
 const DRUG_GROUPS = [
   {
     group: "응급약물 — 심박수 증가",
     drugs: [
       { name: "Atropine", kr: "아트로핀", potency: "0.5 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "High Epinephrine", kr: "에피네프린", potency: "1 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "응급약물 — 혈압 상승",
     drugs: [
-      { name: "Low Epinephrine", kr: "에피네프린 (저용량)", potency: "—", diluent: "N/S 0.9ml + Epi 0.1ml", storage: "지혈제로도 사용", note: "" },
+      { name: "High Epinephrine", kr: "에피네프린", potency: "1 mg/ml", diluent: "—", storage: "—", note: "지혈제로도 사용" },
+      { name: "Low Epinephrine", kr: "에피네프린 (저용량)", potency: "—", diluent: "N/S 0.9ml + Epi 0.1ml", storage: "—", note: "" },
     ],
   },
   {
@@ -223,8 +222,8 @@ const DRUG_GROUPS = [
       { name: "Amikacin", kr: "아미카신", potency: "250 mg/ml", diluent: "—", storage: "—", note: "" },
       { name: "Ampicillin/Sulbactam", kr: "유바실린/설박탐", potency: "설박탐 50 / 암피실린 100 mg/ml", diluent: "주사용수 5ml", storage: "냉장", note: "" },
       { name: "Ampicillin", kr: "펜브렉스", potency: "100 mg/ml", diluent: "주사용수 5ml", storage: "—", note: "" },
-      { name: "Ampicillin", kr: "펜브록", potency: "100 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "Cefazolin", kr: "세파졸린", potency: "200 mg/ml", diluent: "주사용수 5ml", storage: "—", note: "" },
+      { name: "Ampicillin", kr: "펜브록", potency: "—", diluent: "—", storage: "—", note: "" },
+      { name: "Cefazolin", kr: "세파졸린", potency: "200 mg/ml", diluent: "주사용수 5ml", storage: "냉장", note: "" },
       { name: "Cefepime", kr: "맥스핌", potency: "100 mg/ml", diluent: "주사용수 5ml", storage: "냉장", note: "" },
       { name: "Cefotaxime", kr: "세포탁심", potency: "200 mg/ml", diluent: "주사용수 5ml", storage: "냉장", note: "" },
       { name: "Enrofloxacin", kr: "바이트릴", potency: "50 mg/ml", diluent: "—", storage: "—", note: "" },
@@ -266,77 +265,75 @@ const DRUG_GROUPS = [
   {
     group: "항혈전제",
     drugs: [
-      { name: "Dalteparin", kr: "프라그민", potency: "2500 IU/ml", diluent: "—", storage: "—", note: "처치 시 주사침 변경" },
+      { name: "Dalteparin", kr: "프라그민", potency: "2500 IU/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "저용량 시 소염제 / 고용량 시 면역억제제 (스테로이드)",
     drugs: [
-      { name: "PDS", kr: "소론", potency: "10 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "PDS (고용량)", kr: "소론 고용량", potency: "62.5 mg/ml", diluent: "별첨용제 2ml", storage: "차광, 실온", note: "" },
+      { name: "PDS", kr: "소론", potency: "10 mg/ml", diluent: "—", storage: "—", note: "처치 시 주사침 변경 (23G)" },
     ],
   },
   {
     group: "스테로이드 (소염제)",
     drugs: [
-      { name: "MPSS", kr: "메치솔/솔론", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "MPSS", kr: "메치솔/솔론", potency: "62.5 mg/ml", diluent: "별첨용제 2ml", storage: "차광, 실온", note: "" },
       { name: "Dexamethasone", kr: "덱사메타손", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "스테로이드",
     drugs: [
-      { name: "Triamcinolone", kr: "트리암시놀론", potency: "2500 µg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Triamcinolone", kr: "트리암시놀론", potency: "—", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "Vit B12",
     drugs: [
-      { name: "Hydroxocobalamin", kr: "하이코민", potency: "100 µg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Hydroxocobalamin", kr: "하이코민", potency: "2500 µg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "항경련제",
     drugs: [
       { name: "Levetiracetam", kr: "에필리탐", potency: "100 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "Phenobarbital", kr: "페노바비탈", potency: "1 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "Midazolam", kr: "미다졸람", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "Diazepam", kr: "디아제팜", potency: "1 mg/ml", diluent: "—", storage: "—", note: "차광 보관" },
+      { name: "Phenobarbital", kr: "페노바비탈", potency: "100 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Midazolam", kr: "미다졸람", potency: "1 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Diazepam", kr: "디아제팜", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "진통제",
     drugs: [
-      { name: "Butorphanol", kr: "부토르파놀", potency: "50 mg/ml", diluent: "N/S 첨가, 술 후 진통역할", storage: "—", note: "" },
-      { name: "Tramadol", kr: "트라마돌", potency: "—", diluent: "—", storage: "—", note: "" },
-      { name: "Remi-fentanil", kr: "레미펜타닐", potency: "10 mg/ml", diluent: "—", storage: "—", note: "" },
-      { name: "Acepromazine / ACE", kr: "세다헥트", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Butorphanol", kr: "부토르파놀", potency: "1 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Tramadol", kr: "트라마돌", potency: "50 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Remi-fentanil", kr: "레미펜타닐", potency: "—", diluent: "N/S 첨가", storage: "—", note: "술 후 진통역할" },
+      { name: "Acepromazine / ACE", kr: "세다헥트", potency: "10 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "소염 진통제",
     drugs: [
-      { name: "Meloxicam / Metacam", kr: "메타캄", potency: "100 mg/ml", diluent: "—", storage: "—", note: "치료 처방" },
+      { name: "Meloxicam / Metacam", kr: "메타캄", potency: "5 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
   {
     group: "항산화제, 진해거담제 (기침·가래 등 억제)",
     drugs: [
-      { name: "N-acetylcysteine", kr: "뮤테란", potency: "10 mg/ml", diluent: "—", storage: "—", note: "강아지 구토 유발에도 사용 (고양이 ×)" },
-      { name: "N-acetylcysteine", kr: "뮤테란 (고농도)", potency: "100 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "N-acetylcysteine", kr: "뮤테란", potency: "100 mg/ml", diluent: "—", storage: "차광", note: "네뷸" },
     ],
   },
   {
     group: "지혈 작용",
     drugs: [
-      { name: "Vit K", kr: "비타 케이", potency: "—", diluent: "—", storage: "—", note: "" },
-      { name: "Tranexamic acid / TXA", kr: "트라넥삼", potency: "2 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Vit K", kr: "비타 케이", potency: "10 mg/ml", diluent: "—", storage: "—", note: "" },
+      { name: "Tranexamic acid / TXA", kr: "트라넥삼", potency: "100 mg/ml", diluent: "—", storage: "—", note: "강아지 구토 유발에도 사용 (고양이 ×)" },
     ],
   },
   {
-    group: "항 히스타민제",
+    group: "항히스타민제",
     drugs: [
-      { name: "Chlorpheniramine", kr: "히스타민", potency: "—", diluent: "—", storage: "—", note: "" },
+      { name: "Chlorpheniramine", kr: "히스타민", potency: "2 mg/ml", diluent: "—", storage: "—", note: "" },
     ],
   },
 ];
