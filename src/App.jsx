@@ -120,7 +120,7 @@ const css = `
   .calc-num { font-family: 'Space Mono', monospace; font-size: 48px; font-weight: 700; color: #fff; line-height: 1; text-align: right; word-break: break-all; }
   .numpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px 16px 8px; }
   .num-btn {
-    padding: 0; height: 68px; border-radius: 50%; border: none;
+    padding: 0; height: 68px; border-radius: 16px; border: none;
     background: #d4d4d2; color: #1c1c1e;
     font-family: 'Space Mono', monospace; font-size: 22px; font-weight: 500;
     cursor: pointer; transition: opacity .1s; text-align: center;
@@ -130,7 +130,7 @@ const css = `
   .num-btn.op { background: #ff9f0a; color: #fff; font-size: 26px; }
   .num-btn.eq { background: #ff9f0a; color: #fff; font-size: 26px; }
   .num-btn.func { background: #a5a5a5; color: #1c1c1e; font-size: 20px; }
-  .num-btn.zero { grid-column: span 2; border-radius: 34px; justify-content: flex-start; padding-left: 26px; }
+  .num-btn.zero { grid-column: span 2; border-radius: 16px; justify-content: flex-start; padding-left: 26px; }
   .calc-history { margin: 6px 16px 0; background: ${C.white}; border: 1px solid ${C.border}; border-radius: 14px; overflow: hidden; }
   .calc-history-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid ${C.border}; background: #f8fafc; }
   .calc-history-title { font-size: 11px; font-weight: 700; color: ${C.sub}; letter-spacing: .5px; text-transform: uppercase; }
