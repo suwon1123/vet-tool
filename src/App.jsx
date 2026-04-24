@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 
 const C = {
   bg: "#f5f6f8", white: "#ffffff", border: "#e4e7ec",
-  accent: "#2563eb", accentLight: "#eff4ff",
+  accent: "#2563eb", accentLight: "#eff4ff", accentDim: "#eff4ff",
   text: "#111827", muted: "#6b7280", sub: "#9ca3af",
   danger: "#ef4444", green: "#16a34a", warn: "#d97706",
   blue: "#2563eb", red: "#dc2626",
@@ -486,65 +486,71 @@ function HydrationScreen() {
 
 // ── Drug / Calculator ─────────────────────────────────────────────────────────
 function DrugScreen() {
-  const [display, setDisplay] = useState("0");
-  const [expr, setExpr] = useState("");
-  const [waitingOp, setWaitingOp] = useState(false);
-  const [lastOp, setLastOp] = useState(null);
-  const [stored, setStored] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [activeOp, setActiveOp] = useState(null);
+  const [bw, setBw] = useState("");
+  const [drugName, setDrugName] = useState("");
+  const [potency, setPotency] = useState("");
+  const [dose, setDose] = useState("");
+  const [activeField, setActiveField] = useState(null); // "bw"|"potency"|"dose"
+  const [showDrugPicker, setShowDrugPicker] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState([]);
 
-  const fmt = (n) => {
-    if (n === null || isNaN(n)) return "오류";
-    const s = parseFloat(n.toPrecision(10)).toString();
-    return s.length > 12 ? parseFloat(n.toPrecision(8)).toString() : s;
-  };
+  // Flat drug list for picker
+  const allDrugs = DRUG_GROUPS.flatMap(g => g.drugs.map(d => ({ ...d, group: g.group })));
+
+  const bwNum = parseFloat(bw);
+  const potencyNum = parseFloat(potency);
+  const doseNum = parseFloat(dose);
+  const isValid = bwNum > 0 && potencyNum > 0 && doseNum > 0;
+  const result = isValid ? (bwNum * doseNum / potencyNum) : null;
+  const fmt2 = (n) => parseFloat(n.toFixed(4)).toString();
 
   const pressNum = (n) => {
-    setActiveOp(null);
-    setDisplay(prev => {
-      if (waitingOp || prev === "0") { setWaitingOp(false); return n === "." ? "0." : n; }
+    if (!activeField) return;
+    const setter = activeField === "bw" ? setBw : activeField === "potency" ? setPotency : setDose;
+    setter(prev => {
       if (n === "." && prev.includes(".")) return prev;
-      if (prev.length >= 12) return prev;
+      if (prev === "0" && n !== ".") return n;
+      if (prev.length >= 8) return prev;
       return prev + n;
     });
   };
 
-  const evaluate = (a, b, op) => {
-    if (op === "+") return a + b;
-    if (op === "−") return a - b;
-    if (op === "×") return a * b;
-    if (op === "÷") return b === 0 ? NaN : a / b;
-    return b;
+  const pressDel = () => {
+    if (!activeField) return;
+    const setter = activeField === "bw" ? setBw : activeField === "potency" ? setPotency : setDose;
+    setter(prev => prev.length <= 1 ? "" : prev.slice(0, -1));
   };
 
-  const pressOp = (op) => {
-    const cur = parseFloat(display);
-    setActiveOp(op);
-    if (stored !== null && !waitingOp) {
-      const result = evaluate(stored, cur, lastOp);
-      setDisplay(fmt(result)); setStored(result); setExpr(fmt(result) + " " + op);
-    } else {
-      setStored(cur); setExpr(display + " " + op);
-    }
-    setLastOp(op); setWaitingOp(true);
+  const pressAC = () => {
+    if (!activeField) return;
+    const setter = activeField === "bw" ? setBw : activeField === "potency" ? setPotency : setDose;
+    setter("");
   };
 
-  const pressEq = () => {
-    if (stored === null || lastOp === null) return;
-    const cur = parseFloat(display);
-    const result = evaluate(stored, cur, lastOp);
-    const fullExpr = expr + " " + display + " =";
-    setHistory(prev => [{ eq: fullExpr, result: fmt(result) }, ...prev].slice(0, 20));
-    setExpr(fullExpr);
-    setDisplay(fmt(result)); setStored(null); setLastOp(null); setWaitingOp(true); setActiveOp(null);
+  const saveHistory = () => {
+    if (!isValid) return;
+    const entry = {
+      drug: drugName || "약물",
+      expr: `${bwNum}kg × ${doseNum}mg/kg ÷ ${potencyNum}mg/ml`,
+      result: fmt2(result),
+    };
+    setHistory(prev => [entry, ...prev].slice(0, 20));
   };
 
-  const pressAC = () => { setDisplay("0"); setExpr(""); setWaitingOp(false); setLastOp(null); setStored(null); setActiveOp(null); };
-  const pressDel = () => { if (waitingOp) return; setDisplay(prev => prev.length <= 1 ? "0" : prev.slice(0, -1)); };
-  const pressPM = () => setDisplay(prev => { const n = parseFloat(prev); return isNaN(n) ? prev : fmt(-n); });
-  const pressPct = () => setDisplay(prev => { const n = parseFloat(prev); return isNaN(n) ? prev : fmt(n / 100); });
+  const selectDrug = (d) => {
+    setDrugName(`${d.name} (${d.kr})`);
+    // auto-fill potency if available
+    const p = parseFloat(d.potency);
+    if (!isNaN(p)) setPotency(String(p));
+    setShowDrugPicker(false);
+  };
+
+  const fieldStyle = (f) => ({
+    border: `2px solid ${activeField === f ? C.accent : C.border}`,
+    borderRadius: 12, padding: "10px 14px", background: C.white,
+    cursor: "pointer", transition: "border-color .15s",
+  });
 
   return (
     <div className="screen">
@@ -552,66 +558,136 @@ function DrugScreen() {
         <span className="header-title" style={{fontFamily:"'Noto Sans KR',sans-serif"}}>약물 용량 계산기</span>
       </div>
 
-      <div className="calc-display">
-        <div className="calc-expr">{expr || " "}</div>
-        <div className="calc-num" style={{fontSize: display.length > 9 ? "32px" : display.length > 6 ? "40px" : "48px"}}>{display}</div>
+      <div style={{padding:"14px 16px 0", display:"flex", flexDirection:"column", gap:10}}>
+
+        {/* 체중 */}
+        <div style={fieldStyle("bw")} onClick={() => setActiveField("bw")}>
+          <div style={{fontSize:10,color:C.sub,marginBottom:3,letterSpacing:.5,textTransform:"uppercase"}}>체중 (kg)</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,color:bw ? C.text : C.sub}}>
+              {bw || "0"}
+            </span>
+            <button onClick={e => { e.stopPropagation(); setBw(""); }} style={{fontSize:11,color:C.danger,background:"#fff5f5",border:"1px solid #fecaca",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontFamily:"'Noto Sans KR',sans-serif"}}>초기화</button>
+          </div>
+        </div>
+
+        {/* 약물 선택 */}
+        <div style={{...fieldStyle(null), cursor:"pointer"}} onClick={() => setShowDrugPicker(true)}>
+          <div style={{fontSize:10,color:C.sub,marginBottom:3,letterSpacing:.5,textTransform:"uppercase"}}>약물</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontSize:15,fontWeight:600,color:drugName ? C.text : C.sub}}>{drugName || "약물 선택"}</span>
+            <span style={{fontSize:13,color:C.sub}}>▼</span>
+          </div>
+        </div>
+
+        {/* 역가 */}
+        <div style={{...fieldStyle(null), background:"#f8fafc", cursor:"default"}}>
+          <div style={{fontSize:10,color:C.sub,marginBottom:3,letterSpacing:.5,textTransform:"uppercase"}}>역가 (mg/ml) — 약물 선택 시 자동 입력</div>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,color:potency ? C.text : C.sub}}>
+            {potency || "—"}
+          </span>
+        </div>
+
+        {/* 투여 용량 */}
+        <div style={fieldStyle("dose")} onClick={() => setActiveField("dose")}>
+          <div style={{fontSize:10,color:C.sub,marginBottom:3,letterSpacing:.5,textTransform:"uppercase"}}>투여 용량 (mg/kg)</div>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,color:dose ? C.text : C.sub}}>
+            {dose || "0"}
+          </span>
+        </div>
+
+        {/* 약물/역가/용량 초기화 버튼 */}
+        <button onClick={() => { setDrugName(""); setPotency(""); setDose(""); }}
+          style={{padding:"10px",background:"#fff5f5",border:"1px solid #fecaca",borderRadius:12,color:C.danger,fontSize:13,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:600,cursor:"pointer"}}>
+          약물 / 역가 / 투여용량 초기화
+        </button>
+
+        {/* 결과 */}
+        <div style={{background: isValid ? C.accentDim||"#eff4ff" : "#f8fafc", border:`2px solid ${isValid ? C.accent : C.border}`, borderRadius:14, padding:"14px 16px"}}>
+          <div style={{fontSize:10,color:isValid?C.accent:C.sub,marginBottom:4,letterSpacing:.5,textTransform:"uppercase"}}>주사량 (ml)</div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:36,fontWeight:700,color:isValid?C.accent:C.sub}}>
+            {isValid ? fmt2(result) : "—"}
+          </div>
+          {isValid && (
+            <div style={{fontSize:11,color:C.muted,marginTop:4}}>
+              {bwNum}kg × {doseNum}mg/kg ÷ {potencyNum}mg/ml
+            </div>
+          )}
+        </div>
+
+        {/* 저장 버튼 */}
+        {isValid && (
+          <button onClick={saveHistory} style={{padding:"12px",background:C.accent,border:"none",borderRadius:12,color:"#fff",fontSize:14,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:600,cursor:"pointer"}}>
+            계산 기록 저장
+          </button>
+        )}
       </div>
 
-      {/* History */}
+      {/* 숫자패드 팝업 */}
+      {activeField && (
+        <div className="overlay" onClick={() => setActiveField(null)}>
+          <div style={{background:C.white, borderRadius:"24px 24px 0 0", padding:"16px 16px 32px", width:"100%"}} onClick={e => e.stopPropagation()}>
+            <div style={{width:40,height:4,background:C.border,borderRadius:2,margin:"0 auto 16px"}}/>
+            <div style={{fontSize:12,color:C.sub,textAlign:"center",marginBottom:8,fontWeight:600}}>
+              {activeField === "bw" ? "체중 (kg)" : activeField === "potency" ? "역가 (mg/ml)" : "투여 용량 (mg/kg)"}
+            </div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:40,fontWeight:700,textAlign:"right",padding:"0 12px 12px",color:C.text,borderBottom:`1px solid ${C.border}`,marginBottom:12}}>
+              {(activeField === "bw" ? bw : activeField === "potency" ? potency : dose) || "0"}
+            </div>
+            {/* 3x4 standard numpad */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+              {[1,2,3,4,5,6,7,8,9].map(n => (
+                <button key={n} onClick={() => pressNum(String(n))}
+                  style={{padding:"18px",background:"#f3f4f6",border:"none",borderRadius:12,fontSize:22,fontFamily:"'Space Mono',monospace",fontWeight:600,cursor:"pointer"}}>
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => pressNum(".")}
+                style={{padding:"18px",background:"#f3f4f6",border:"none",borderRadius:12,fontSize:22,fontFamily:"'Space Mono',monospace",fontWeight:600,cursor:"pointer"}}>
+                .
+              </button>
+              <button onClick={() => pressNum("0")}
+                style={{padding:"18px",background:"#f3f4f6",border:"none",borderRadius:12,fontSize:22,fontFamily:"'Space Mono',monospace",fontWeight:600,cursor:"pointer"}}>
+                0
+              </button>
+              <button onClick={pressDel}
+                style={{padding:"18px",background:"#fee2e2",border:"none",borderRadius:12,fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {Icon.del}
+              </button>
+            </div>
+            <button onClick={() => setActiveField(null)}
+              style={{width:"100%",marginTop:10,padding:"14px",background:C.accent,border:"none",borderRadius:12,color:"#fff",fontSize:16,fontFamily:"'Noto Sans KR',sans-serif",fontWeight:700,cursor:"pointer"}}>
+              완료
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 계산 기록 */}
       {history.length > 0 && (
-        <div className="calc-history">
-          <div className="calc-history-header" onClick={() => setHistoryOpen(o => !o)} style={{cursor:"pointer"}}>
+        <div className="calc-history" style={{margin:"10px 16px 0"}}>
+          <div className="calc-history-header" onClick={() => setHistoryOpen(o=>!o)} style={{cursor:"pointer"}}>
             <span className="calc-history-title">계산 기록</span>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              {historyOpen && <button className="calc-history-clear" onClick={e => { e.stopPropagation(); setHistory([]); setHistoryOpen(false); }}>전체 삭제</button>}
-              <span style={{fontSize:12,color:C.sub}}>{historyOpen ? "▲ 접기" : "▼ 펼치기"}</span>
+              {historyOpen && <button className="calc-history-clear" onClick={e=>{e.stopPropagation();setHistory([]);setHistoryOpen(false);}}>전체 삭제</button>}
+              <span style={{fontSize:12,color:C.sub}}>{historyOpen?"▲ 접기":"▼ 펼치기"}</span>
             </div>
           </div>
-          {/* 항상 최신 1개 표시 */}
-          <div className="calc-history-item" onClick={() => { setDisplay(history[0].result); setWaitingOp(true); }}>
-            <div className="calc-history-eq">{history[0].eq}</div>
-            <div className="calc-history-result">{history[0].result}</div>
+          <div className="calc-history-item">
+            <div className="calc-history-eq">{history[0].drug} · {history[0].expr}</div>
+            <div className="calc-history-result">{history[0].result} ml</div>
           </div>
-          {/* 펼치면 나머지 표시 */}
-          {historyOpen && history.slice(1).map((h, i) => (
-            <div key={i} className="calc-history-item" onClick={() => { setDisplay(h.result); setWaitingOp(true); }}>
-              <div className="calc-history-eq">{h.eq}</div>
-              <div className="calc-history-result">{h.result}</div>
+          {historyOpen && history.slice(1).map((h,i) => (
+            <div key={i} className="calc-history-item">
+              <div className="calc-history-eq">{h.drug} · {h.expr}</div>
+              <div className="calc-history-result">{h.result} ml</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* iPhone-style numpad */}
-      <div className="numpad">
-        {/* Row 1 */}
-        <button className="num-btn func" onClick={pressAC} style={{fontSize:18}}>{display === "0" && !expr ? "AC" : "C"}</button>
-        <button className="num-btn func" onClick={pressPM}>+/−</button>
-        <button className="num-btn func" onClick={pressPct}>%</button>
-        <button className={`num-btn op${activeOp === "÷" ? " active-op" : ""}`} onClick={() => pressOp("÷")}>÷</button>
-        {/* Row 2 */}
-        <button className="num-btn" onClick={() => pressNum("7")}>7</button>
-        <button className="num-btn" onClick={() => pressNum("8")}>8</button>
-        <button className="num-btn" onClick={() => pressNum("9")}>9</button>
-        <button className={`num-btn op${activeOp === "×" ? " active-op" : ""}`} onClick={() => pressOp("×")}>×</button>
-        {/* Row 3 */}
-        <button className="num-btn" onClick={() => pressNum("4")}>4</button>
-        <button className="num-btn" onClick={() => pressNum("5")}>5</button>
-        <button className="num-btn" onClick={() => pressNum("6")}>6</button>
-        <button className={`num-btn op${activeOp === "−" ? " active-op" : ""}`} onClick={() => pressOp("−")}>−</button>
-        {/* Row 4 */}
-        <button className="num-btn" onClick={() => pressNum("1")}>1</button>
-        <button className="num-btn" onClick={() => pressNum("2")}>2</button>
-        <button className="num-btn" onClick={() => pressNum("3")}>3</button>
-        <button className={`num-btn op${activeOp === "+" ? " active-op" : ""}`} onClick={() => pressOp("+")}>+</button>
-        {/* Row 5 */}
-        <button className="num-btn zero" onClick={() => pressNum("0")}>0</button>
-        <button className="num-btn" onClick={() => pressNum(".")}>.</button>
-        <button className="num-btn eq" onClick={pressEq}>=</button>
-      </div>
-
-      {/* Drug reference table grouped */}
-      <div style={{padding:"4px 16px 6px",fontSize:11,color:C.sub,fontWeight:600,letterSpacing:.5,textTransform:"uppercase"}}>약물역가 정리표</div>
+      {/* 약물역가 정리표 */}
+      <div style={{padding:"14px 16px 6px",fontSize:11,color:C.sub,fontWeight:700,letterSpacing:.5,textTransform:"uppercase"}}>약물역가 정리표</div>
       <div style={{padding:"0 16px 4px",fontSize:10,color:"#ef4444"}}>주사용량(ml) = 몸무게(kg) × 용량 / 역가</div>
 
       {DRUG_GROUPS.map((g, gi) => (
@@ -629,7 +705,7 @@ function DrugScreen() {
               </thead>
               <tbody>
                 {g.drugs.map((d, di) => (
-                  <tr key={di}>
+                  <tr key={di} onClick={() => selectDrug(d)} style={{cursor:"pointer"}}>
                     <td>
                       <div className="dn-wrap">
                         <span className="dn">{d.name}</span>
@@ -651,6 +727,31 @@ function DrugScreen() {
       <div style={{padding:"4px 16px 12px",fontSize:10,color:C.sub,lineHeight:1.6}}>
         ⚠️ 일반적 참고치 — 실제 투약 전 임상 판단 필요
       </div>
+
+      {/* 약물 선택 모달 */}
+      {showDrugPicker && (
+        <div className="overlay" onClick={() => setShowDrugPicker(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div className="modal-title">약물 선택</div>
+            {DRUG_GROUPS.map((g, gi) => (
+              <div key={gi} style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.sub,letterSpacing:.5,textTransform:"uppercase",marginBottom:6}}>{g.group}</div>
+                {g.drugs.map((d, di) => (
+                  <div key={di} onClick={() => selectDrug(d)}
+                    style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:6,cursor:"pointer",background:C.white,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600}}>{d.name}</div>
+                      <div style={{fontSize:11,color:C.sub}}>{d.kr}</div>
+                    </div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.accent}}>{d.potency}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
